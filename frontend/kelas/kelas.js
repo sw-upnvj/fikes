@@ -8,6 +8,13 @@ function parseTimeToMinutes(t) {
   return h * 60 + min;
 }
 
+// ✅ Escape HTML: cegah user memasukkan script jahat
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
 function timesOverlap(startA, endA, startB, endB) {
   const sA = parseTimeToMinutes(startA), eA = parseTimeToMinutes(endA);
   const sB = parseTimeToMinutes(startB), eB = parseTimeToMinutes(endB);
@@ -114,12 +121,13 @@ function initApp() {
   document.getElementById("endTime").addEventListener("change", renderRooms);
   document.querySelector(".btn-quick[data-offset='0']").click();
   setInterval(async () => {
-    if (document.getElementById("mainPage").style.display === "block") {
-      await fetchBookings(); 
-      if (document.getElementById('tabDaftar').style.display === 'block') renderListBookings();
-      if (document.getElementById('tabRekap').style.display === 'block') renderMonthlyView();
-    }
-  }, 15000);
+    // ✅ Jangan refresh kalau tab browser tidak aktif (hemat kuota)
+    if (document.visibilityState !== "visible") return;
+    if (document.getElementById("mainPage").style.display !== "block") return;
+    await fetchBookings();
+    if (document.getElementById('tabDaftar').style.display === 'block') renderListBookings();
+    if (document.getElementById('tabRekap').style.display === 'block') renderMonthlyView();
+  }, 45000); // ✅ 45 detik, lebih hemat dari 15 detik
 }
 
 function renderRooms() {
@@ -196,6 +204,15 @@ async function submitBooking() {
   let datesToBook = [];
   if (document.getElementById("bookingType").value === "single") { datesToBook.push(document.getElementById("formDate").value); } 
   else { if (selectedExtraDates.length === 0) { showToast("Pilih minimal 1 tanggal di kalender!", "error"); return; } datesToBook = [...selectedExtraDates]; }
+
+  // ✅ Validasi: tolak tanggal yang sudah lewat
+    const nowCheck = new Date();
+    const todayCheck = `${nowCheck.getFullYear()}-${String(nowCheck.getMonth() + 1).padStart(2, '0')}-${String(nowCheck.getDate()).padStart(2, '0')}`;
+    const pastDates = datesToBook.filter(d => d < todayCheck);
+    if (pastDates.length > 0) {
+      showToast(`Tanggal berikut sudah lewat: ${pastDates.join(", ")}. Silakan pilih tanggal lain.`, "error", 5000);
+      return;
+    }
 
   btnSubmit.innerText = "Memeriksa ketersediaan..."; btnSubmit.disabled = true;
   try {
@@ -279,7 +296,7 @@ function renderListBookings() {
     const dateObj = new Date(b.date + "T00:00:00"); const dateStr = dateObj.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
     let statusColor = b.status === 'unconfirmed' ? '#f39c12' : '#2ecc71'; let statusText = b.status === 'unconfirmed' ? '(Belum Konfirmasi)' : '';
     const tr = document.createElement("tr"); tr.style.borderBottom = "1px solid #eee";
-    tr.innerHTML = `<td>${dateStr}</td><td>${b.start} - ${b.end}</td><td style="font-weight: bold; color: #1e3a5f;">${roomName}</td><td>${b.activity} <br><small style="color:${statusColor};">${statusText}</small></td><td>${b.contactPerson || b.email}</td>`;
+    tr.innerHTML = `<td>${esc(dateStr)}</td><td>${esc(b.start)} - ${esc(b.end)}</td><td style="font-weight: bold; color: #1e3a5f;">${esc(roomName)}</td><td>${esc(b.activity)} <br><small style="color:${statusColor};">${esc(statusText)}</small></td><td>${esc(b.contactPerson || b.email)}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -322,7 +339,10 @@ function openDetailFromMatrix(bookingsJson, roomName) {
   const bookings = JSON.parse(decodeURIComponent(bookingsJson)); if (!bookings || bookings.length === 0) return;
   if (bookings.length === 1) { openDetailModal(bookings[0], ROOMS.find(r => r.name === roomName) || { name: roomName, id: bookings[0].roomId }); return; }
   const safeRoomName = roomName.replace(/'/g, "\\'");
-  const list = bookings.map((b) => { const encoded = encodeURIComponent(JSON.stringify(b)); return `<div class="matrix-booking-item" onclick="openDetailFromMatrixSingle('${encoded}', '${safeRoomName}')"><strong>${b.start} - ${b.end}</strong> — ${b.activity}<br><small>${b.contactPerson || b.email}</small></div>`; }).join("");
+  const list = bookings.map((b) => {
+  const encoded = encodeURIComponent(JSON.stringify(b));
+  return `<div class="matrix-booking-item" onclick="openDetailFromMatrixSingle('${encoded}', '${safeRoomName}')"><strong>${esc(b.start)} - ${esc(b.end)}</strong> — ${esc(b.activity)}<br><small>${esc(b.contactPerson || b.email)}</small></div>`;
+}).join("");
   let modal = document.getElementById("matrixListModal");
   if (!modal) {
     modal = document.createElement("div"); modal.id = "matrixListModal"; modal.className = "modal-overlay";
@@ -362,13 +382,27 @@ function renderMiniCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate(); const roomId = document.getElementById("formRoomId").value;
   const start = document.getElementById("formStart").value; const end = document.getElementById("formEnd").value;
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const isOverlap = liveBookings.find(b => b.roomId === roomId && b.date === dateStr && timesOverlap(start, end, b.start, b.end));
-    let cellStyle = "padding: 6px 0; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;";
-    if (isOverlap) { cellStyle += "background: #e0e0e0; color: #999; cursor: not-allowed;"; grid.innerHTML += `<div style="${cellStyle}">${d}</div>`; } 
-    else {
-      cellStyle += "background: #fff; border: 1px solid var(--abu-kotak); color: var(--hijau-gelap); font-weight: bold;";
+  // ✅ Tentukan "hari ini" dalam format YYYY-MM-DD (zona waktu lokal)
+const now = new Date();
+const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+for (let d = 1; d <= daysInMonth; d++) {
+  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const isPast = dateStr < todayStr;   // ✅ tanggal sudah lewat
+  const isOverlap = liveBookings.find(b => b.roomId === roomId && b.date === dateStr && timesOverlap(start, end, b.start, b.end));
+  let cellStyle = "padding: 6px 0; border-radius: 4px; font-size: 0.8rem; transition: all 0.2s;";
+
+    if (isPast) {
+      // Tanggal lewat: abu-abu, dicoret, tidak bisa diklik
+      cellStyle += "background: #f5f5f5; color: #bbb; cursor: not-allowed; text-decoration: line-through;";
+      grid.innerHTML += `<div style="${cellStyle}" title="Tanggal sudah lewat">${d}</div>`;
+    } else if (isOverlap) {
+      // Sudah terisi: abu-abu, tidak bisa diklik
+      cellStyle += "background: #e0e0e0; color: #999; cursor: not-allowed;";
+      grid.innerHTML += `<div style="${cellStyle}">${d}</div>`;
+    } else {
+      // Kosong & bukan tanggal lewat: bisa dipilih
+      cellStyle += "background: #fff; border: 1px solid var(--abu-kotak); color: var(--hijau-gelap); font-weight: bold; cursor: pointer;";
       const cellId = `cal-${dateStr}`;
       grid.innerHTML += `<div id="${cellId}" style="${cellStyle}" onclick="toggleDateSelection('${dateStr}', '${cellId}')">${d}</div>`;
       if (dateStr === baseDateStr) toggleDateSelection(dateStr, cellId);
