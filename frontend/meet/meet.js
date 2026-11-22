@@ -41,7 +41,7 @@ function generateKotakAkun() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-    fetch('http://127.0.0.1:5000/api/cek-jadwal', {
+    fetch('https://geek-ground-haziness.ngrok-free.dev/api/cek-jadwal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -147,7 +147,7 @@ function editMeeting() { alert("Fitur Edit Meeting akan segera hadir!"); }
 function hapusMeeting() {
     if (!meetingIdAkanDihapus) return;
     if (confirm("Apakah Anda yakin ingin menghapus meeting ini?")) {
-        fetch('http://127.0.0.1:5000/api/hapus-meeting', {
+        fetch('https://geek-ground-haziness.ngrok-free.dev/api/hapus-meeting', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ akun: akunDetailSaatIni, event_id: meetingIdAkanDihapus, meeting_code: meetingCodeAkanDihapus })
@@ -178,7 +178,7 @@ function buatMeeting() {
     document.querySelectorAll('#tab-buat .control-card')[0].style.display = 'none';
     document.getElementById('panel-loading').style.display = 'block';
 
-    fetch('http://127.0.0.1:5000/api/buat-meeting', {
+    fetch('https://geek-ground-haziness.ngrok-free.dev/api/buat-meeting', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -264,7 +264,7 @@ function muatSemuaRiwayat() {
     container.innerHTML = '<p style="text-align:center; color:#666;">🔄 Memuat daftar meeting...</p>';
     btn.disabled = true; btn.innerText = 'Memuat...';
 
-    fetch('http://127.0.0.1:5000/api/riwayat-meeting', {
+    fetch('https://geek-ground-haziness.ngrok-free.dev/api/riwayat-meeting', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userAktif.email, nama: userAktif.nama })
     })
@@ -309,7 +309,7 @@ function cariRekamanVideo(meetingCode, topik) {
     panel.style.display = 'block';
     box.innerHTML = '<p>🔄 Mencari file video di Google Drive...</p>';
 
-    fetch('http://127.0.0.1:5000/api/cari-rekaman', {
+    fetch('https://geek-ground-haziness.ngrok-free.dev/api/cari-rekaman', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ meeting_code: meetingCode })
     })
