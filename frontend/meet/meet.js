@@ -41,7 +41,7 @@ function generateKotakAkun() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-    fetch('https://geek-ground-haziness.ngrok-free.dev/api/cek-jadwal', {
+    fetch(FLASK_URL + '/api/cek-jadwal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -103,7 +103,8 @@ function setTanggal(offsetDays) {
 
     let date = new Date();
     date.setDate(date.getDate() + offsetDays);
-    let formattedDate = date.toISOString().split('T')[0];
+    // ✅ Pakai waktu lokal, bukan UTC
+        const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     document.getElementById('input-tanggal').value = formattedDate;
     
     if(userAktif) generateKotakAkun();
@@ -142,12 +143,12 @@ function bukaDetailRapat(akun, topik, pic, waktu, id, isMilikSendiri, code) {
 
 function tutupModal() { document.getElementById('modal-detail').style.display = 'none'; }
 function klikLuarModal(event) { if (event.target.id === 'modal-detail') tutupModal(); }
-function editMeeting() { alert("Fitur Edit Meeting akan segera hadir!"); }
+function editMeeting() { showToast("Fitur Edit Meeting akan segera hadir!"); }
 
 function hapusMeeting() {
     if (!meetingIdAkanDihapus) return;
     if (confirm("Apakah Anda yakin ingin menghapus meeting ini?")) {
-        fetch('https://geek-ground-haziness.ngrok-free.dev/api/hapus-meeting', {
+        fetch(FLASK_URL + '/api/hapus-meeting', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ akun: akunDetailSaatIni, event_id: meetingIdAkanDihapus, meeting_code: meetingCodeAkanDihapus })
@@ -155,11 +156,11 @@ function hapusMeeting() {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                alert("✅ Meeting berhasil dihapus dari Google Calendar!");
+                showToast("✅ Meeting berhasil dihapus dari Google Calendar!");
                 tutupModal();
                 generateKotakAkun();
             } else {
-                alert("Gagal menghapus: " + data.error);
+                showToast("Gagal menghapus: " + data.error);
             }
         });
     }
@@ -171,14 +172,14 @@ function buatMeeting() {
     const jamSelesai = document.getElementById('input-jam-selesai').value;
     const topik = document.getElementById('input-topik').value;
 
-    if (!tanggal || !jamMulai || !jamSelesai || topik.trim() === "") { alert("Mohon lengkapi Tanggal, Jam, dan Topik!"); return; }
-    if (jamMulai >= jamSelesai) { alert("Jam Selesai harus lebih lambat dari Jam Mulai!"); return; }
-    if (!akunTerpilih) { alert("Silakan pilih akun Google Meet!"); return; }
+    if (!tanggal || !jamMulai || !jamSelesai || topik.trim() === "") { showToast("Mohon lengkapi Tanggal, Jam, dan Topik!", "error"); return; }
+    if (jamMulai >= jamSelesai) { showToast("Jam Selesai harus lebih lambat dari Jam Mulai!", "error"); return; }
+    if (!akunTerpilih) { showToast("Silakan pilih akun Google Meet!", "error"); return; }
 
     document.querySelectorAll('#tab-buat .control-card')[0].style.display = 'none';
     document.getElementById('panel-loading').style.display = 'block';
 
-    fetch('https://geek-ground-haziness.ngrok-free.dev/api/buat-meeting', {
+    fetch(FLASK_URL + '/api/buat-meeting', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -210,13 +211,13 @@ function buatMeeting() {
                 barisLinkAbsen.style.display = 'none';
             }
         } else {
-            alert("Gagal dari server: " + (data.error || data.message));
+            showToast("Gagal dari server: " + (data.error || data.message));
             resetForm();
         }
     })
     .catch(error => {
         document.getElementById('panel-loading').style.display = 'none';
-        alert("Error Sistem: " + error.message);
+        showToast("Error Sistem: " + error.message);
         resetForm();
     });
 }
@@ -253,7 +254,7 @@ function formatTanggalIndo(tglString) {
 
 function copyHasilMeeting() {
     const teks = document.getElementById('teks-hasil-meeting').innerText;
-    navigator.clipboard.writeText(teks).then(() => alert("✅ Teks berhasil di-copy!")).catch(() => alert("Gagal men-copy teks."));
+    navigator.clipboard.writeText(teks).then(() => showToast("✅ Teks berhasil di-copy!")).catch(() => showToast("Gagal men-copy teks."));
 }
 
 let semuaDataMeeting = []; 
@@ -264,7 +265,7 @@ function muatSemuaRiwayat() {
     container.innerHTML = '<p style="text-align:center; color:#666;">🔄 Memuat daftar meeting...</p>';
     btn.disabled = true; btn.innerText = 'Memuat...';
 
-    fetch('https://geek-ground-haziness.ngrok-free.dev/api/riwayat-meeting', {
+    fetch(FLASK_URL + '/api/riwayat-meeting', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userAktif.email, nama: userAktif.nama })
     })
@@ -309,7 +310,7 @@ function cariRekamanVideo(meetingCode, topik) {
     panel.style.display = 'block';
     box.innerHTML = '<p>🔄 Mencari file video di Google Drive...</p>';
 
-    fetch('https://geek-ground-haziness.ngrok-free.dev/api/cari-rekaman', {
+    fetch(FLASK_URL + '/api/cari-rekaman', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ meeting_code: meetingCode })
     })
