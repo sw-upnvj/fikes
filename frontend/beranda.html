@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beranda - FIKES UPNVJ</title>
+  <link rel="stylesheet" href="shared/style.css">
+  <script src="shared/api.js"></script>
+  <script src="shared/auth.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      // Cek apakah user sudah login. Jika belum, tendang ke index.html
+      const user = checkAuth();
+      if (user) {
+        document.getElementById("userName").innerText = user.name;
+        document.getElementById("userRole").innerText = user.role;
+      }
+    });
+  </script>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-content">
+      <div>
+        <h1>Sistem Terpadu FIKES</h1>
+        <p class="subtitle">Universitas Pembangunan Nasional Veteran Jakarta</p>
+        <p class="user-badge">👤 <span id="userName"></span> (<span id="userRole"></span>)</p>
+      </div>
+      <button onclick="logout()" class="btn-logout">🚪 Logout</button>
+    </div>
+  </header>
+
+  <!-- Menu Utama -->
+  <main class="container" style="margin-top: 40px;">
+    <h2 style="text-align: center; color: var(--hijau-gelap); margin-bottom: 30px;">Pilih Layanan</h2>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+      
+      <!-- Menu Kelas -->
+      <a href="kelas/kelas.html" style="text-decoration: none;">
+        <div class="control-card" style="text-align: center; transition: transform 0.2s; cursor: pointer; padding: 40px 20px;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+          <div style="font-size: 3rem; margin-bottom: 10px;">🏢</div>
+          <h3 style="color: var(--hijau-gelap); font-size: 1.2rem; margin-bottom: 8px;">Peminjaman Kelas</h3>
+          <p style="color: var(--abu-teks); font-size: 0.9rem;">Pesan ruangan kelas untuk perkuliahan, rapat, dan kegiatan akademik lainnya.</p>
+        </div>
+      </a>
+
+      <!-- Menu GMeet -->
+      <a href="meet/meet.html" style="text-decoration: none;">
+        <div class="control-card" style="text-align: center; transition: transform 0.2s; cursor: pointer; padding: 40px 20px;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+          <div style="font-size: 3rem; margin-bottom: 10px;">🎥</div>
+          <h3 style="color: var(--hijau-gelap); font-size: 1.2rem; margin-bottom: 8px;">Peminjaman Google Meet</h3>
+          <p style="color: var(--abu-teks); font-size: 0.9rem;">Buat tautan Google Meet untuk rapat online dan kuliah daring.</p>
+        </div>
+      </a>
+
+    </div>
+  </main>
+
+</body>
+</html>

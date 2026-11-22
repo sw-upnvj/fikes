@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - FIKES UPNVJ</title>
+  <link rel="stylesheet" href="shared/style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="shared/api.js"></script>
+  <script src="shared/auth.js"></script>
+  <script>
+    // Jika sudah login, langsung lempar ke beranda
+    window.addEventListener("DOMContentLoaded", () => {
+      redirectIfLoggedIn();
+    });
+  </script>
+</head>
+<body style="background-color: var(--hijau-gelap);">
+
+  <div class="page-section" style="min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+    <div class="login-box" style="background: var(--putih); padding: 40px 30px; border-radius: var(--radius-lg); width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center;">
+      
+      <h2 style="color: var(--hijau-gelap); font-size: 1.5rem; font-weight: 700; margin-bottom: 8px;">Sistem Terpadu FIKES</h2>
+      <p style="font-size: 0.9rem; color: var(--abu-teks); margin-bottom: 24px;">Peminjaman Ruangan & Google Meet</p>
+      
+      <p style="font-size: 0.85rem; color: var(--abu-teks); margin-bottom: 15px;">Gunakan akun Google <strong>@upnvj.ac.id</strong> atau <strong>@mahasiswa.upnvj.ac.id</strong>.</p>
+
+      <!-- Google Sign In Button -->
+      <div id="g_id_onload"
+           data-client_id="25545982602-uf1e2dgiki7d337l65oe2t559b2oat3b.apps.googleusercontent.com"
+           data-callback="handleCredentialResponse"
+           data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin"
+           data-type="standard"
+           data-shape="rectangular"
+           data-theme="outline"
+           data-text="signin_with"
+           data-size="large"
+           data-logo_alignment="center">
+      </div>
+
+      <p id="loginError" class="error-text" style="display:none; margin-top: 15px;"></p>
+    </div>
+  </div>
+
+</body>
+</html>
