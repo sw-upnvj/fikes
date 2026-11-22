@@ -15,22 +15,12 @@ function esc(s) {
   }[c]));
 }
 
+
 function timesOverlap(startA, endA, startB, endB) {
   const sA = parseTimeToMinutes(startA), eA = parseTimeToMinutes(endA);
   const sB = parseTimeToMinutes(startB), eB = parseTimeToMinutes(endB);
   if (sA === null || eA === null || sB === null || eB === null) return false;
   return sA < eB && eA > sB;
-}
-
-function showToast(message, type = "info", duration = 3500) {
-  let container = document.getElementById("toastContainer");
-  if (!container) { container = document.createElement("div"); container.id = "toastContainer"; container.className = "toast-container"; document.body.appendChild(container); }
-  const toast = document.createElement("div");
-  toast.className = "toast toast-" + type;
-  toast.innerHTML = `<span>${message}</span>`;
-  container.appendChild(toast);
-  requestAnimationFrame(() => toast.classList.add("show"));
-  setTimeout(() => { toast.classList.remove("show"); setTimeout(() => toast.remove(), 300); }, duration);
 }
 
 let currentUser = null;
@@ -325,7 +315,14 @@ function renderMonthlyView() {
       let cellContent = ""; let cellBg = "#fff";
       if (bookings.length > 0) {
         cellBg = bookings.some(b => b.status === 'unconfirmed') ? "var(--emas)" : "var(--hijau-tosca)";
-        cellContent = `<span style="color: white; font-size: 0.7rem; font-weight: bold;">${bookings.map(b => b.start).join(", ")}</span>`;
+                // ✅ Teks turun ke bawah, font lebih kecil, tetap di dalam kotak
+        cellContent = `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 2px;">` + 
+          bookings.map(b => 
+            `<span style="color: white; font-size: 0.6rem; font-weight: bold; line-height: 1.3; white-space: nowrap;">
+               ${b.start}-${b.end}
+             </span>`
+          ).join("") + 
+        `</div>`;
       }
       const bookingsJson = encodeURIComponent(JSON.stringify(bookings));
       tbody += `<td style="padding: 6px 4px; border: 1px solid #ddd; background: ${cellBg}; cursor: ${bookings.length > 0 ? 'pointer' : 'default'}; border-radius: 4px;" ${bookings.length > 0 ? `onclick="openDetailFromMatrix('${bookingsJson}', '${room.name}')"` : ''}>${cellContent}</td>`;
