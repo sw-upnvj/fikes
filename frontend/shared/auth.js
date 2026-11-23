@@ -50,7 +50,7 @@ function logout() {
   window.location.href = isSubfolder ? "../index.html" : "index.html";
 }
 
-// 4. CALLBACK LOGIN GOOGLE
+// 4. CALLBACK LOGIN GOOGLE (INI YANG DIPERBAIKI)
 window.handleCredentialResponse = async function(response) {
   const idToken = response.credential;
   const loginError = document.getElementById("loginError");
@@ -76,9 +76,17 @@ window.handleCredentialResponse = async function(response) {
     const checkRes = await fetch(API_URL + "?action=checkUser&id_token=" + encodeURIComponent(idToken));
     const checkData = await checkRes.json();
 
-    if (checkData.success && !checkData.registered) {
-      alert("Email Anda belum terdaftar. Silakan hubungi admin atau daftar melalui aplikasi.");
-      return;
+    // ✅ DI SINI LETAK YANG BENAR UNTUK MENAMPILKAN FORM REGISTRASI
+    if (checkData.success && !checkData.registered) { 
+      document.querySelector('.g_id_signin').style.display = 'none';
+      if (loginError) loginError.style.display = 'none';
+      
+      const regPage = document.getElementById("registerPage");
+      if (regPage) {
+        regPage.style.display = "block"; 
+        document.getElementById("regEmail").value = email; 
+      }
+      return; 
     }
 
     const formData = new URLSearchParams();
@@ -128,4 +136,52 @@ function showToast(message, type = "info", duration = 3500) {
   container.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add("show"));
   setTimeout(() => { toast.classList.remove("show"); setTimeout(() => toast.remove(), 300); }, duration);
+}
+
+// 7. FUNGSI REGISTRASI (DARI app.js LAMA)
+async function submitRegister() {
+  const email = document.getElementById("regEmail").value;
+  const nama = document.getElementById("regNama").value.trim();
+  const role = document.getElementById("regRole").value;
+  const prodi = document.getElementById("regProdi").value;
+  const errorEl = document.getElementById("registerError"); 
+  
+  if(errorEl) errorEl.style.display = "none"; 
+  
+  if (!nama || !role || !prodi) { 
+    if(errorEl) {
+      errorEl.innerText = "Semua field harus diisi."; 
+      errorEl.style.display = "block"; 
+    }
+    return; 
+  }
+  
+  const formData = new URLSearchParams();
+  formData.append("action", "register"); 
+  formData.append("email", email);
+  formData.append("nama", nama); 
+  formData.append("role", role); 
+  formData.append("prodi", prodi);
+  
+  try {
+    const res = await fetch(API_URL, { method: "POST", body: formData });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message + " Silakan login ulang.", "success", 5000);
+      
+      // Kembalikan ke tampilan login awal
+      document.getElementById("registerPage").style.display = "none";
+      document.querySelector('.g_id_signin').style.display = 'block';
+    } else { 
+      if(errorEl) {
+        errorEl.innerText = data.message; 
+        errorEl.style.display = "block"; 
+      }
+    }
+  } catch (err) { 
+    if(errorEl) {
+      errorEl.innerText = "Gagal terhubung ke server."; 
+      errorEl.style.display = "block"; 
+    }
+  }
 }
