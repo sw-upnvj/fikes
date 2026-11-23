@@ -1,3 +1,4 @@
+
 function parseTimeToMinutes(t) {
   if (!t || typeof t !== "string") return null;
   const m = t.trim().match(/^(\d{1,2}):(\d{2})$/);
@@ -13,6 +14,7 @@ function esc(s) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
 }
+
 
 function timesOverlap(startA, endA, startB, endB) {
   const sA = parseTimeToMinutes(startA), eA = parseTimeToMinutes(endA);
@@ -45,20 +47,32 @@ const ROOMS = [
   { id: "410", name: "Ruang 410", capacity: 44 }
 ];
 
+
 // ✅ LOGIKA SAAT REFRESH (PASTI TIDAK LOGOUT)
 window.addEventListener("DOMContentLoaded", () => {
+  // 1. Ambil sesi dari auth.js
   const session = getSession();
+  
+  // 2. Jika belum login, tendang ke halaman login utama
   if (!session || !session.user) {
     window.location.href = "../index.html";
     return;
   }
+
+  // 3. Set user aktif
   currentUser = session.user;
+  
+  // 4. Tampilkan nama user di header (jika elemennya ada)
   const userBadge = document.getElementById("userBadge");
   if (userBadge) {
     userBadge.innerText = `${currentUser.name} (${currentUser.role} - ${currentUser.prodi || '-'})`;
   }
+  
+  // 5. Jalankan aplikasi
   fetchBookings().then(() => initApp());
 });
+
+
 
 async function fetchBookings() {
   try {
@@ -97,12 +111,13 @@ function initApp() {
   document.getElementById("endTime").addEventListener("change", renderRooms);
   document.querySelector(".btn-quick[data-offset='0']").click();
   setInterval(async () => {
+    // ✅ Jangan refresh kalau tab browser tidak aktif (hemat kuota)
     if (document.visibilityState !== "visible") return;
     if (document.getElementById("mainPage").style.display !== "block") return;
     await fetchBookings();
     if (document.getElementById('tabDaftar').style.display === 'block') renderListBookings();
     if (document.getElementById('tabRekap').style.display === 'block') renderMonthlyView();
-  }, 45000);
+  }, 45000); // ✅ 45 detik, lebih hemat dari 15 detik
 }
 
 function renderRooms() {
@@ -125,7 +140,7 @@ function renderRooms() {
     if (conflict) cardClass = conflict.status === 'unconfirmed' ? "unconfirmed" : "occupied";
     card.className = "room-card " + cardClass; card.setAttribute("role", "button"); card.setAttribute("tabindex", "0");
 
-    const capacityLine = room.capacity ? `<div class="room-capacity">🪑 ${room.capacity} kursi</div>` : `<div class="room-capacity" style="opacity:0;">-</div>`;
+    const capacityLine = room.capacity ? `<div class="room-capacity">🪑 ${room.capacity} kursi</div>` : `<div class="room-capacity" style="opacity:0;">-</div>`; // Tetap render kosong agar grid sejajar
 
     if (conflict) {
       card.innerHTML = `<div class="card-top"><div class="room-name">${room.name}</div>${capacityLine}</div><div class="card-bottom"><strong>Dipakai: ${conflict.activity}</strong><br><small>(${conflict.email})</small><br><small>👁️ Klik untuk detail</small></div>`;
@@ -180,13 +195,14 @@ async function submitBooking() {
   if (document.getElementById("bookingType").value === "single") { datesToBook.push(document.getElementById("formDate").value); } 
   else { if (selectedExtraDates.length === 0) { showToast("Pilih minimal 1 tanggal di kalender!", "error"); return; } datesToBook = [...selectedExtraDates]; }
 
-  const nowCheck = new Date();
-  const todayCheck = `${nowCheck.getFullYear()}-${String(nowCheck.getMonth() + 1).padStart(2, '0')}-${String(nowCheck.getDate()).padStart(2, '0')}`;
-  const pastDates = datesToBook.filter(d => d < todayCheck);
-  if (pastDates.length > 0) {
-    showToast(`Tanggal berikut sudah lewat: ${pastDates.join(", ")}. Silakan pilih tanggal lain.`, "error", 5000);
-    return;
-  }
+  // ✅ Validasi: tolak tanggal yang sudah lewat
+    const nowCheck = new Date();
+    const todayCheck = `${nowCheck.getFullYear()}-${String(nowCheck.getMonth() + 1).padStart(2, '0')}-${String(nowCheck.getDate()).padStart(2, '0')}`;
+    const pastDates = datesToBook.filter(d => d < todayCheck);
+    if (pastDates.length > 0) {
+      showToast(`Tanggal berikut sudah lewat: ${pastDates.join(", ")}. Silakan pilih tanggal lain.`, "error", 5000);
+      return;
+    }
 
   btnSubmit.innerText = "Memeriksa ketersediaan..."; btnSubmit.disabled = true;
   try {
@@ -223,7 +239,10 @@ async function submitBooking() {
   finally { btnSubmit.innerText = originalText; btnSubmit.disabled = false; }
 }
 
-function logout() { window.logout(); }
+function logout() {
+  // auth.js sudah punya fungsi logout, kita panggil itu
+  window.logout(); 
+}
 
 function openDetailModal(booking, room) {
   try {
@@ -294,10 +313,9 @@ function renderMonthlyView() {
       const dateStr = `${year}-${month}-${String(d).padStart(2, '0')}`;
       const bookings = liveBookings.filter(b => b.roomId === room.id && b.date === dateStr && b.status !== 'cancelled');
       let cellContent = ""; let cellBg = "#fff";
-      
       if (bookings.length > 0) {
         cellBg = bookings.some(b => b.status === 'unconfirmed') ? "var(--emas)" : "var(--hijau-tosca)";
-        // ✅ Teks turun ke bawah, font lebih kecil, tetap di dalam kotak
+                // ✅ Teks turun ke bawah, font lebih kecil, tetap di dalam kotak
         cellContent = `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 2px;">` + 
           bookings.map(b => 
             `<span style="color: white; font-size: 0.6rem; font-weight: bold; line-height: 1.3; white-space: nowrap;">
@@ -306,7 +324,6 @@ function renderMonthlyView() {
           ).join("") + 
         `</div>`;
       }
-      
       const bookingsJson = encodeURIComponent(JSON.stringify(bookings));
       tbody += `<td style="padding: 6px 4px; border: 1px solid #ddd; background: ${cellBg}; cursor: ${bookings.length > 0 ? 'pointer' : 'default'}; border-radius: 4px;" ${bookings.length > 0 ? `onclick="openDetailFromMatrix('${bookingsJson}', '${room.name}')"` : ''}>${cellContent}</td>`;
     }
@@ -320,10 +337,9 @@ function openDetailFromMatrix(bookingsJson, roomName) {
   if (bookings.length === 1) { openDetailModal(bookings[0], ROOMS.find(r => r.name === roomName) || { name: roomName, id: bookings[0].roomId }); return; }
   const safeRoomName = roomName.replace(/'/g, "\\'");
   const list = bookings.map((b) => {
-    const encoded = encodeURIComponent(JSON.stringify(b));
-    return `<div class="matrix-booking-item" onclick="openDetailFromMatrixSingle('${encoded}', '${safeRoomName}')"><strong>${esc(b.start)} - ${esc(b.end)}</strong> — ${esc(b.activity)}<br><small>${esc(b.contactPerson || b.email)}</small></div>`;
-  }).join("");
-  
+  const encoded = encodeURIComponent(JSON.stringify(b));
+  return `<div class="matrix-booking-item" onclick="openDetailFromMatrixSingle('${encoded}', '${safeRoomName}')"><strong>${esc(b.start)} - ${esc(b.end)}</strong> — ${esc(b.activity)}<br><small>${esc(b.contactPerson || b.email)}</small></div>`;
+}).join("");
   let modal = document.getElementById("matrixListModal");
   if (!modal) {
     modal = document.createElement("div"); modal.id = "matrixListModal"; modal.className = "modal-overlay";
@@ -363,22 +379,26 @@ function renderMiniCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate(); const roomId = document.getElementById("formRoomId").value;
   const start = document.getElementById("formStart").value; const end = document.getElementById("formEnd").value;
 
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // ✅ Tentukan "hari ini" dalam format YYYY-MM-DD (zona waktu lokal)
+const now = new Date();
+const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const isPast = dateStr < todayStr;
-    const isOverlap = liveBookings.find(b => b.roomId === roomId && b.date === dateStr && timesOverlap(start, end, b.start, b.end));
-    let cellStyle = "padding: 6px 0; border-radius: 4px; font-size: 0.8rem; transition: all 0.2s;";
+for (let d = 1; d <= daysInMonth; d++) {
+  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const isPast = dateStr < todayStr;   // ✅ tanggal sudah lewat
+  const isOverlap = liveBookings.find(b => b.roomId === roomId && b.date === dateStr && timesOverlap(start, end, b.start, b.end));
+  let cellStyle = "padding: 6px 0; border-radius: 4px; font-size: 0.8rem; transition: all 0.2s;";
 
     if (isPast) {
+      // Tanggal lewat: abu-abu, dicoret, tidak bisa diklik
       cellStyle += "background: #f5f5f5; color: #bbb; cursor: not-allowed; text-decoration: line-through;";
       grid.innerHTML += `<div style="${cellStyle}" title="Tanggal sudah lewat">${d}</div>`;
     } else if (isOverlap) {
+      // Sudah terisi: abu-abu, tidak bisa diklik
       cellStyle += "background: #e0e0e0; color: #999; cursor: not-allowed;";
       grid.innerHTML += `<div style="${cellStyle}">${d}</div>`;
     } else {
+      // Kosong & bukan tanggal lewat: bisa dipilih
       cellStyle += "background: #fff; border: 1px solid var(--abu-kotak); color: var(--hijau-gelap); font-weight: bold; cursor: pointer;";
       const cellId = `cal-${dateStr}`;
       grid.innerHTML += `<div id="${cellId}" style="${cellStyle}" onclick="toggleDateSelection('${dateStr}', '${cellId}')">${d}</div>`;
