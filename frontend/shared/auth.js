@@ -50,7 +50,7 @@ function logout() {
   window.location.href = isSubfolder ? "../index.html" : "index.html";
 }
 
-// 4. CALLBACK LOGIN GOOGLE (INI YANG DIPERBAIKI)
+// 4. CALLBACK LOGIN GOOGLE (BAGIAN YANG DIPERBAIKI)
 window.handleCredentialResponse = async function(response) {
   const idToken = response.credential;
   const loginError = document.getElementById("loginError");
@@ -73,14 +73,17 @@ window.handleCredentialResponse = async function(response) {
       return;
     }
 
-    const checkRes = await fetch(API_URL + "?action=checkUser&id_token=" + encodeURIComponent(idToken));
+    const checkRes = await fetch(API_URL + "?action=checkUserToken&id_token=" + encodeURIComponent(idToken));
     const checkData = await checkRes.json();
 
-    // ✅ DI SINI LETAK YANG BENAR UNTUK MENAMPILKAN FORM REGISTRASI
+    // ✅ KONDISI SAAT EMAIL BELUM TERDAFTAR
     if (checkData.success && !checkData.registered) { 
-      document.querySelector('.g_id_signin').style.display = 'none';
+      // Sembunyikan tombol Google dan pesan error
+      const btnGoogle = document.querySelector('.g_id_signin');
+      if (btnGoogle) btnGoogle.style.display = 'none';
       if (loginError) loginError.style.display = 'none';
       
+      // Munculkan form registrasi
       const regPage = document.getElementById("registerPage");
       if (regPage) {
         regPage.style.display = "block"; 
@@ -89,6 +92,7 @@ window.handleCredentialResponse = async function(response) {
       return; 
     }
 
+    // ✅ KONDISI SAAT EMAIL SUDAH TERDAFTAR (LANJUT LOGIN)
     const formData = new URLSearchParams();
     formData.append("action", "login");
     formData.append("id_token", idToken);
@@ -103,12 +107,14 @@ window.handleCredentialResponse = async function(response) {
       if (loginError) {
         loginError.innerText = data.message;
         loginError.style.color = "#c0392b";
+        loginError.style.display = "block";
       }
     }
   } catch (err) {
     if (loginError) {
       loginError.innerText = "Gagal terhubung ke server.";
       loginError.style.color = "#c0392b";
+      loginError.style.display = "block";
     }
   }
 };
@@ -138,7 +144,7 @@ function showToast(message, type = "info", duration = 3500) {
   setTimeout(() => { toast.classList.remove("show"); setTimeout(() => toast.remove(), 300); }, duration);
 }
 
-// 7. FUNGSI REGISTRASI (DARI app.js LAMA)
+// 7. FUNGSI REGISTRASI
 async function submitRegister() {
   const email = document.getElementById("regEmail").value;
   const nama = document.getElementById("regNama").value.trim();
@@ -171,7 +177,8 @@ async function submitRegister() {
       
       // Kembalikan ke tampilan login awal
       document.getElementById("registerPage").style.display = "none";
-      document.querySelector('.g_id_signin').style.display = 'block';
+      const btnGoogle = document.querySelector('.g_id_signin');
+      if (btnGoogle) btnGoogle.style.display = 'block';
     } else { 
       if(errorEl) {
         errorEl.innerText = data.message; 
