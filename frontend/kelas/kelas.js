@@ -26,6 +26,9 @@ function timesOverlap(startA, endA, startB, endB) {
 let currentUser = null;
 let liveBookings = [];
 let selectedExtraDates = [];
+// Untuk navigasi bulan di kalender multi-tanggal
+let calendarYear = null;
+let calendarMonth = null; // 0 = Januari, 11 = Desember
 
 const ROOMS = [
   { id: "rapat", name: "Ruang Rapat FIKES", capacity: null },
@@ -363,45 +366,98 @@ function switchTab(tabId) {
 function toggleBookingType() {
   const type = document.getElementById("bookingType").value;
   const multipleContainer = document.getElementById("multipleDateContainer");
-  if (type === "multiple") { multipleContainer.style.display = "block"; renderMiniCalendar(); } else { multipleContainer.style.display = "none"; }
+  if (type === "multiple") {
+    // Reset bulan kalender ke bulan tanggal awal
+    const baseDateStr = document.getElementById("formDate").value;
+    const baseDate = new Date(baseDateStr + "T00:00:00");
+    calendarYear = baseDate.getFullYear();
+    calendarMonth = baseDate.getMonth();
+    multipleContainer.style.display = "block";
+    renderMiniCalendar();
+  } else {
+    multipleContainer.style.display = "none";
+  }
 }
 
 function renderMiniCalendar() {
-  const grid = document.getElementById("calendarGrid"); grid.innerHTML = ""; selectedExtraDates = [];
-  const baseDateStr = document.getElementById("formDate").value; const baseDate = new Date(baseDateStr + "T00:00:00");
-  const year = baseDate.getFullYear(); const month = baseDate.getMonth();
-  ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].forEach(day => { grid.innerHTML += `<div style="font-size: 0.7rem; font-weight: bold; color: var(--hijau-gelap); padding-bottom: 4px;">${day}</div>`; });
-  let firstDay = new Date(year, month, 1).getDay(); firstDay = firstDay === 0 ? 6 : firstDay - 1;
+  const grid = document.getElementById("calendarGrid");
+  grid.innerHTML = "";
+
+  // Jika bulan belum diset, pakai bulan dari tanggal awal
+  if (calendarYear === null || calendarMonth === null) {
+    const baseDateStr = document.getElementById("formDate").value;
+    const baseDate = new Date(baseDateStr + "T00:00:00");
+    calendarYear = baseDate.getFullYear();
+    calendarMonth = baseDate.getMonth();
+  }
+
+  const baseDateStr = document.getElementById("formDate").value;
+  const baseDate = new Date(baseDateStr + "T00:00:00");
+
+  // === HEADER: Tombol Bulan + Nama Bulan ===
+  const bulanNama = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const navHtml = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; grid-column: 1/-1;">
+      <button type="button" onclick="geserKalender(-1)" style="background:var(--hijau-tosca); color:#fff; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; font-weight:bold;">‹</button>
+      <span style="font-weight:700; color:var(--hijau-gelap); font-size:0.85rem;">${bulanNama[calendarMonth]} ${calendarYear}</span>
+      <button type="button" onclick="geserKalender(1)" style="background:var(--hijau-tosca); color:#fff; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; font-weight:bold;">›</button>
+    </div>`;
+  grid.innerHTML = navHtml;
+
+  // === Header Hari ===
+  ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].forEach(day => {
+    const isWeekend = (day === 'Sab' || day === 'Min');
+    grid.innerHTML += `<div style="font-size:0.7rem; font-weight:bold; color:${isWeekend ? '#e74c3c' : 'var(--hijau-gelap)'}; padding-bottom:4px;">${day}</div>`;
+  });
+
+  // Kosongkan sebelum tanggal 1
+  let firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+  firstDay = firstDay === 0 ? 6 : firstDay - 1;
   for (let i = 0; i < firstDay; i++) { grid.innerHTML += `<div></div>`; }
-  const daysInMonth = new Date(year, month + 1, 0).getDate(); const roomId = document.getElementById("formRoomId").value;
-  const start = document.getElementById("formStart").value; const end = document.getElementById("formEnd").value;
 
-  // ✅ Tentukan "hari ini" dalam format YYYY-MM-DD (zona waktu lokal)
-const now = new Date();
-const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  const roomId = document.getElementById("formRoomId").value;
+  const start = document.getElementById("formStart").value;
+  const end = document.getElementById("formEnd").value;
 
-for (let d = 1; d <= daysInMonth; d++) {
-  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  const isPast = dateStr < todayStr;   // ✅ tanggal sudah lewat
-  const isOverlap = liveBookings.find(b => b.roomId === roomId && b.date === dateStr && timesOverlap(start, end, b.start, b.end));
-  let cellStyle = "padding: 6px 0; border-radius: 4px; font-size: 0.8rem; transition: all 0.2s;";
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
-    if (isPast) {
-      // Tanggal lewat: abu-abu, dicoret, tidak bisa diklik
-      cellStyle += "background: #f5f5f5; color: #bbb; cursor: not-allowed; text-decoration: line-through;";
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayOfWeek = new Date(calendarYear, calendarMonth, d).getDay(); // 0=Minggu, 6=Sabtu
+    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    const isPast = dateStr < todayStr;
+    const isOverlap = liveBookings.find(b => b.roomId === roomId && b.date === dateStr && timesOverlap(start, end, b.start, b.end));
+
+    let cellStyle = "padding:6px 0; border-radius:4px; font-size:0.8rem; transition:all 0.2s;";
+
+    if (isWeekend) {
+      // Sabtu/Minggu: abu-abu muda, tidak bisa diklik
+      cellStyle += "background:#f9f9f9; color:#bbb; cursor:not-allowed; border:1px solid #eee;";
+      grid.innerHTML += `<div style="${cellStyle}" title="Hari libur">${d}</div>`;
+    } else if (isPast) {
+      cellStyle += "background:#f5f5f5; color:#bbb; cursor:not-allowed; text-decoration:line-through;";
       grid.innerHTML += `<div style="${cellStyle}" title="Tanggal sudah lewat">${d}</div>`;
     } else if (isOverlap) {
-      // Sudah terisi: abu-abu, tidak bisa diklik
-      cellStyle += "background: #e0e0e0; color: #999; cursor: not-allowed;";
+      cellStyle += "background:#e0e0e0; color:#999; cursor:not-allowed;";
       grid.innerHTML += `<div style="${cellStyle}">${d}</div>`;
     } else {
-      // Kosong & bukan tanggal lewat: bisa dipilih
-      cellStyle += "background: #fff; border: 1px solid var(--abu-kotak); color: var(--hijau-gelap); font-weight: bold; cursor: pointer;";
+      cellStyle += "background:#fff; border:1px solid var(--abu-kotak); color:var(--hijau-gelap); font-weight:bold; cursor:pointer;";
       const cellId = `cal-${dateStr}`;
-      grid.innerHTML += `<div id="${cellId}" style="${cellStyle}" onclick="toggleDateSelection('${dateStr}', '${cellId}')">${d}</div>`;
+      grid.innerHTML += `<div id="${cellId}" style="${cellStyle}" onclick="toggleDateSelection('${dateStr}','${cellId}')">${d}</div>`;
+      // Auto-pilih tanggal awal jika di bulan ini
       if (dateStr === baseDateStr) toggleDateSelection(dateStr, cellId);
     }
   }
+}
+
+// Fungsi geser bulan (‹ dan ›)
+function geserKalender(arah) {
+  calendarMonth += arah;
+  if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+  if (calendarMonth < 0)  { calendarMonth = 11; calendarYear--; }
+  renderMiniCalendar();
 }
 
 function toggleDateSelection(dateStr, cellId) {
