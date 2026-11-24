@@ -40,9 +40,6 @@ const ROOMS = [
   { id: "208", name: "Ruang 208", capacity: 55 }, { id: "301", name: "Ruang 301", capacity: 20 },
   { id: "302", name: "Ruang 302", capacity: 20 }, { id: "303", name: "Ruang 303", capacity: 20 },
   { id: "304", name: "Ruang 304", capacity: 20 }, { id: "305", name: "Ruang 305", capacity: 20 },
-  { id: "306", name: "Ruang 306", capacity: 20 }, { id: "307", name: "Ruang 307", capacity: 20 },
-  { id: "308", name: "Ruang 308", capacity: 20 }, { id: "309", name: "Ruang 309", capacity: 20 },
-  { id: "310", name: "Ruang 310", capacity: 20 }, { id: "407", name: "Ruang 407", capacity: 50 },
   { id: "408", name: "Ruang 408", capacity: 52 }, { id: "409", name: "Ruang 409", capacity: 50 },
   { id: "410", name: "Ruang 410", capacity: 44 }
 ];
