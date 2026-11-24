@@ -145,9 +145,31 @@ table td { color: var(--hijau-gelap); font-size: 0.9rem; font-weight: 500; paddi
 @media (max-width: 600px) { .tab-btn { min-width: 100%; } }
 
 /* --- MATRIKS & TOAST --- */
-#matrixTable { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
-#matrixTable th, #matrixTable td { border: 1px solid #e0e0e0; }
-.matrix-scroll-wrapper { max-height: 70vh; overflow: auto; border: 1px solid var(--abu-kotak); border-radius: 8px; }
+/* --- MATRIKS JADWAL BULANAN (VERSI ANTI-GAGAL) --- */
+.matrix-container {
+  display: flex;
+  border: 1px solid var(--abu-kotak);
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 70vh;
+}
+
+.matrix-fixed {
+  width: 180px; /* Lebar kolom nama ruangan */
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #fff;
+  position: relative;
+  z-index: 2;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* Efek bayangan pemisah */
+}
+
+.matrix-scroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+  position: relative;
+}
 .toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; flex-direction: column; gap: 10px; align-items: center; width: calc(100% - 40px); max-width: 400px; }
 .toast { padding: 14px 18px; border-radius: var(--radius-md); color: #fff; font-size: 0.9rem; font-weight: 500; box-shadow: 0 6px 16px rgba(0,0,0,0.15); transform: translateY(120%); transition: transform 0.3s ease; width: 100%; text-align: center; }
 .toast.show { transform: translateY(0); }
@@ -212,3 +234,56 @@ table td { color: var(--hijau-gelap); font-size: 0.9rem; font-weight: 500; paddi
 }
 .akun-card.penuh h4 { color: var(--abu-teks); border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 8px; margin-bottom: 8px; }
 .akun-card.penuh small { color: #8A8070; font-size: 0.7rem; }
+
+/* ==================================================
+   MATRIKS REKAP 1 BULAN — FIT + SCROLL + FREEZE
+   (blok penimpa, taruh paling bawah biar menang)
+   ================================================== */
+
+/* "Nampan" pembungkus: bikin bisa di-scroll ke kanan & ke bawah */
+.matrix-container,
+.matrix-scroll-wrapper {
+  display: block !important;
+  width: 100% !important;
+  max-height: 65vh;          /* tinggi dibatasi -> scroll ATAS-BAWAH */
+  overflow: auto !important; /* scroll KIRI-KANAN + ATAS-BAWAH */
+  border: 1px solid var(--abu-kotak);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+/* Tabel matriks: boleh LEBIH lebar dari nampan (memicu scroll), tapi minimal pas */
+#matrixTable {
+  border-collapse: separate;  /* kunci agar sel nempel (lawan global collapse) */
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  overflow: visible;
+  font-size: 0.8rem;
+}
+#matrixTable th, #matrixTable td { border: 1px solid #e0e0e0; }
+
+/* Baris TANGGAL: nempel ATAS (tetap terlihat saat scroll ke bawah) */
+#matrixTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f4f6f8;
+}
+
+/* Kolom NAMA RUANGAN: nempel KIRI (tetap terlihat saat scroll ke kanan) */
+#matrixTable tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2 !important;
+  background: #fff;
+  box-shadow: 2px 0 4px -2px rgba(0,0,0,0.15);
+}
+
+/* Sudut kiri-atas ("Ruangan \ Tanggal"): nempel kiri+atas, paling depan */
+#matrixTable thead th:first-child {
+  z-index: 4 !important;
+  background: #f4f6f8;
+  box-shadow: 2px 0 4px -2px rgba(0,0,0,0.15);
+}
