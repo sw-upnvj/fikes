@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="shared/style.css">
   <script src="shared/api.js"></script>
   <script src="shared/auth.js"></script>
-    <script>
+      <script>
     // Cukup SATU event listener saja
     window.addEventListener("DOMContentLoaded", async () => {
       // Cek apakah user sudah login. Jika belum, tendang ke index.html
@@ -16,6 +16,11 @@
         document.getElementById("userName").innerText = user.name;
         document.getElementById("userRole").innerText = user.role;
         
+        // --- TAMPILKAN BADGE ADMIN ---
+        if (user.role && (user.role.toLowerCase() === "administrator" || user.role.toLowerCase() === "admin")) {
+          document.getElementById("adminBadge").style.display = "inline-block";
+        }
+
         // Cek Notifikasi Pembatalan Otomatis
         cekNotifikasiBatal(user.email);
       }
@@ -96,7 +101,7 @@
       <div>
         <h1>Sistem Terpadu FIKES</h1>
         <p class="subtitle">Universitas Pembangunan Nasional Veteran Jakarta</p>
-        <p class="user-badge">👤 <span id="userName"></span> (<span id="userRole"></span>)</p>
+        <p class="user-badge">👤 <span id="userName"></span> (<span id="userRole"></span>) <span id="adminBadge" style="display:none; background:var(--emas); color:#fff; padding: 2px 8px; border-radius:4px; font-weight:bold; font-size:0.7rem; margin-left:5px;">ADMIN</span></p>
       </div>
       <button onclick="logout()" class="btn-logout">🚪 Logout</button>
     </div>
