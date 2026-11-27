@@ -73,10 +73,18 @@
         </section>
       </div>
 
-      <!-- KONTEN: DAFTAR PEMESAN -->
+            <!-- KONTEN: DAFTAR PEMESAN -->
       <div id="tabDaftar" class="tab-content" style="display: none;">
         <div style="background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
-          <h2 class="section-title" style="margin-bottom: 12px;">Daftar Pemesanan Aktif</h2>
+          <h2 class="section-title" style="margin-bottom: 16px;">Daftar Pemesanan Aktif</h2>
+          
+          <!-- FITUR SEARCH & FILTER -->
+          <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+            <input type="text" id="searchBooking" placeholder="🔍 Cari Ruangan, Kegiatan, atau Pemesan..." onkeyup="filterListBookings()" style="flex: 1; min-width: 200px; padding: 10px 16px; border: 1px solid var(--abu-kotak); border-radius: var(--radius-md); font-family: inherit;">
+            <input type="date" id="filterDate" onchange="filterListBookings()" style="padding: 10px; border: 1px solid var(--abu-kotak); border-radius: var(--radius-md); font-family: inherit;">
+            <button onclick="resetFilter()" class="btn-quick" style="flex: none; padding: 10px 16px;">Reset</button>
+          </div>
+
           <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
               <thead>
@@ -86,6 +94,7 @@
                   <th style="padding: 10px;">Ruangan</th>
                   <th style="padding: 10px;">Kegiatan</th>
                   <th style="padding: 10px;">Pemesan</th>
+                  <th style="padding: 10px; text-align: center;">Aksi</th>
                 </tr>
               </thead>
               <tbody id="listBookingBody"></tbody>
