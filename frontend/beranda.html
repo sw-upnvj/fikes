@@ -7,15 +7,85 @@
   <link rel="stylesheet" href="shared/style.css">
   <script src="shared/api.js"></script>
   <script src="shared/auth.js"></script>
-  <script>
-    window.addEventListener("DOMContentLoaded", () => {
+    <script>
+    // Cukup SATU event listener saja
+    window.addEventListener("DOMContentLoaded", async () => {
       // Cek apakah user sudah login. Jika belum, tendang ke index.html
       const user = checkAuth();
       if (user) {
         document.getElementById("userName").innerText = user.name;
         document.getElementById("userRole").innerText = user.role;
+        
+        // Cek Notifikasi Pembatalan Otomatis
+        cekNotifikasiBatal(user.email);
       }
     });
+
+    async function cekNotifikasiBatal(email) {
+      try {
+        const res = await fetch(API_URL + "?action=getNotifikasiBatal&email=" + encodeURIComponent(email));
+        const data = await res.json();
+        
+        if (data.success && data.data.length > 0) {
+          // Ambil notifikasi pertama (jika ada lebih dari satu, kita proses satu-satu)
+          const notif = data.data[0]; 
+          tampilkanModalBatal(notif);
+        }
+      } catch (err) {
+        console.error("Gagal cek notifikasi", err);
+      }
+    }
+
+    function tampilkanModalBatal(notif) {
+      // Format tanggal yang cantik
+      const tgl = new Date(notif.date);
+      const hari = tgl.toLocaleDateString('id-ID', { weekday: 'long' });
+      const tanggal = tgl.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      
+      // Buat elemen modal secara dinamis
+      const modalHTML = `
+        <div id="modalNotifBatal" class="modal-overlay" style="display: flex;">
+          <div class="modal-content" style="text-align: center; max-width: 450px;">
+            <div style="font-size: 3rem; margin-bottom: 10px;">⚠️</div>
+            <h3 class="modal-title" style="color: #c0392b;">Pemesanan Dibatalkan Otomatis</h3>
+            <p style="margin: 15px 0; color: #333; line-height: 1.6;">
+              Anda tidak melakukan konfirmasi email untuk kegiatan:<br>
+              <b>${notif.activity}</b><br><br>
+              Pada:<br>
+              <b>${hari}, ${tanggal}</b><br>
+              Jam: <b>${notif.start} - ${notif.end} WIB</b><br>
+              Ruangan: <b>${notif.roomId}</b>
+            </p>
+            <p style="color: var(--abu-teks); font-size: 0.9rem; margin-bottom: 20px;">
+              Karena melewati batas waktu 12 jam, ruangan telah dilepas. Jika Anda masih membutuhkan ruangan, silakan cari jadwal lain yang kosong.
+            </p>
+            <button onclick="tutupModalBatal('${notif.id}', ${notif.rowIndex})" class="btn-primary" style="width: 100%;">Mengerti</button>
+          </div>
+        </div>
+      `;
+      
+      // Sisipkan ke body
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+
+    async function tutupModalBatal(id, rowIndex) {
+      // Sembunyikan modal
+      const modal = document.getElementById('modalNotifBatal');
+      if (modal) modal.style.display = 'none';
+      
+      // Tandai di database bahwa notif sudah dibaca
+      try {
+        await fetch(API_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: "markNotifRead", rowIndex: rowIndex })
+        });
+        
+        // Reload halaman untuk cek notif lain (jika ada)
+        window.location.reload();
+      } catch (err) {
+        console.log("Gagal update status notif", err);
+      }
+    }
   </script>
 </head>
 <body>
