@@ -187,7 +187,12 @@ function closeModal() { document.getElementById("bookingModal").style.display = 
 
 async function submitBooking() {
   const btnSubmit = document.querySelector('.btn-submit'); const originalText = btnSubmit.innerText;
-  const activity = document.getElementById("formActivity").value.trim(); const phone = document.getElementById("formPhone").value.trim();
+  const activity = document.getElementById("formActivity").value.trim(); 
+  let phone = document.getElementById("formPhone").value.trim();
+  // Bersihkan nomor HP dari karakter aneh, spasi, strip, dan ubah awalan +62/0 menjadi 62
+  phone = phone.replace(/[^0-9]/g, ''); // Hanya ambil angka
+  if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+  if (phone.startsWith('8')) phone = '62' + phone;
   if (!activity || !phone) { showToast("Nama Kegiatan dan No. HP wajib diisi!", "error"); return; }
 
   const start = document.getElementById("formStart").value; const end = document.getElementById("formEnd").value;
@@ -272,17 +277,66 @@ function openDetailModal(booking, room) {
   try {
     const dateObj = new Date(booking.date + "T00:00:00");
     const setText = (id, value) => { const el = document.getElementById(id); if (el) el.innerText = value || "-"; };
+    
     setText("detailRoomName", room.name);
     setText("detailDateTime", dateObj.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + " • " + booking.start + " - " + booking.end);
-    setText("detailCapacity", room.capacity ? room.capacity + " kursi" : "-"); setText("detailActivity", booking.activity);
-    setText("detailCourse", booking.courseName); setText("detailLecturer", booking.lecturerName);
-    setText("detailContact", booking.contactPerson + " (" + booking.contactPhone + ")"); setText("detailEmail", booking.email);
-    setText("detailNotes", booking.notes); setText("detailCount", booking.participantCount === "-" ? "-" : booking.participantCount + " orang");
+    setText("detailCapacity", room.capacity ? room.capacity + " kursi" : "-"); 
+    setText("detailActivity", booking.activity);
+    setText("detailCourse", booking.courseName); 
+    setText("detailLecturer", booking.lecturerName);
+    setText("detailEmail", booking.email);
+    setText("detailNotes", booking.notes); 
+    setText("detailCount", booking.participantCount === "-" ? "-" : booking.participantCount + " orang");
 
-    const btnCancel = document.getElementById("btnCancelBooking");
-    if (btnCancel && currentUser && booking.email.toLowerCase() === currentUser.email.toLowerCase()) {
-      if (booking.status === 'confirmed' || booking.status === 'unconfirmed') { btnCancel.style.display = "block"; btnCancel.dataset.id = booking.id; } else { btnCancel.style.display = "none"; }
-    } else if (btnCancel) { btnCancel.style.display = "none"; }
+    // --- BAGIAN KONTAK & WA ---
+    const elContact = document.getElementById("detailContact");
+    if (elContact) {
+      if (booking.contactPhone && booking.contactPhone !== "-") {
+        // Bersihkan nomor menjadi format WA (628...)
+        let waNumber = booking.contactPhone.replace(/[^0-9]/g, '');
+        if (waNumber.startsWith('0')) waNumber = '62' + waNumber.substring(1);
+        if (waNumber.startsWith('8')) waNumber = '62' + waNumber;
+
+        // Tampilkan nama, nomor yang bisa diklik, dan teks "Klik untuk WA"
+        elContact.innerHTML = `
+          ${esc(booking.contactPerson)} 
+          (<a href="https://wa.me/${waNumber}" target="_blank" style="color: var(--hijau-tosca); text-decoration: underline; font-weight: bold;">${esc(booking.contactPhone)}</a>)
+          <a href="https://wa.me/${waNumber}" target="_blank" style="display: inline-block; font-size: 0.75rem; background: #25D366; color: white; padding: 2px 6px; border-radius: 4px; text-decoration: none; margin-left: 5px;">💬 Klik untuk WA</a>
+        `;
+      } else {
+        elContact.innerText = booking.contactPerson + " (-)";
+      }
+    }
+
+        const btnCancel = document.getElementById("btnCancelBooking");
+    
+    if (btnCancel && currentUser) {
+      // Cek apakah role user adalah Administrator
+      const userRole = (currentUser.role || "").toString().toLowerCase();
+      const isAdmin = (userRole === "administrator" || userRole === "admin");
+      const isOwner = booking.email.toLowerCase() === currentUser.email.toLowerCase();
+
+      if (isAdmin || isOwner) {
+        if (booking.status === 'confirmed' || booking.status === 'unconfirmed') { 
+          btnCancel.style.display = "block"; 
+          btnCancel.dataset.id = booking.id; 
+          
+          // Ubah teks tombol jika Admin yang membatalkan pesanan orang lain
+          if (isAdmin && !isOwner) {
+            btnCancel.innerText = "Batalkan Booking (Admin)";
+          } else {
+            btnCancel.innerText = "Batalkan Booking";
+          }
+        } else { 
+          btnCancel.style.display = "none"; 
+        }
+      } else {
+        btnCancel.style.display = "none";
+      }
+    } else if (btnCancel) { 
+      btnCancel.style.display = "none"; 
+    }
+    
     document.getElementById("detailModal").style.display = "flex";
   } catch (err) { showToast("Gagal menampilkan detail.", "error"); }
 }
@@ -301,18 +355,110 @@ async function confirmCancelBooking() {
 
 function closeDetailModal() { document.getElementById("detailModal").style.display = "none"; }
 
+// ==========================================
+// FITUR BARU: DAFTAR PEMESAN (FILTER & HAPUS)
+// ==========================================
+
+function filterListBookings() {
+  renderListBookings();
+}
+
+function resetFilter() {
+  document.getElementById("searchBooking").value = "";
+  document.getElementById("filterDate").value = "";
+  renderListBookings();
+}
+
 function renderListBookings() {
-  const tbody = document.getElementById("listBookingBody"); tbody.innerHTML = "";
-  const sortedBookings = [...liveBookings].sort((a, b) => a.date !== b.date ? a.date.localeCompare(b.date) : a.start.localeCompare(b.start));
-  if (sortedBookings.length === 0) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: #666;">Belum ada jadwal pemesanan.</td></tr>`; return; }
-  sortedBookings.forEach(b => {
-    const roomObj = ROOMS.find(r => r.id === b.roomId); const roomName = roomObj ? roomObj.name : b.roomId;
-    const dateObj = new Date(b.date + "T00:00:00"); const dateStr = dateObj.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-    let statusColor = b.status === 'unconfirmed' ? '#f39c12' : '#2ecc71'; let statusText = b.status === 'unconfirmed' ? '(Belum Konfirmasi)' : '';
-    const tr = document.createElement("tr"); tr.style.borderBottom = "1px solid #eee";
-    tr.innerHTML = `<td>${esc(dateStr)}</td><td>${esc(b.start)} - ${esc(b.end)}</td><td style="font-weight: bold; color: #1e3a5f;">${esc(roomName)}</td><td>${esc(b.activity)} <br><small style="color:${statusColor};">${esc(statusText)}</small></td><td>${esc(b.contactPerson || b.email)}</td>`;
+  const tbody = document.getElementById("listBookingBody"); 
+  tbody.innerHTML = "";
+  
+  // Ambil nilai dari input search & filter
+  const searchQuery = document.getElementById("searchBooking") ? document.getElementById("searchBooking").value.toLowerCase() : "";
+  const filterDate = document.getElementById("filterDate") ? document.getElementById("filterDate").value : "";
+
+  // Filter data
+  let filtered = liveBookings.filter(b => {
+    const roomObj = ROOMS.find(r => r.id === b.roomId); 
+    const roomName = roomObj ? roomObj.name.toLowerCase() : b.roomId.toLowerCase();
+    
+    // Pencarian (mencari di Ruangan, Kegiatan, dan Pemesan)
+    const matchSearch = roomName.includes(searchQuery) || 
+                        b.activity.toLowerCase().includes(searchQuery) || 
+                        (b.contactPerson && b.contactPerson.toLowerCase().includes(searchQuery)) ||
+                        (b.email && b.email.toLowerCase().includes(searchQuery));
+    
+    // Filter Tanggal
+    const matchDate = filterDate === "" || b.date === filterDate;
+
+    return matchSearch && matchDate;
+  });
+
+  // Urutkan berdasarkan tanggal dan jam
+  filtered.sort((a, b) => a.date !== b.date ? a.date.localeCompare(b.date) : a.start.localeCompare(b.start));
+
+  if (filtered.length === 0) { 
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color: #666;">Tidak ada pemesanan yang cocok dengan filter.</td></tr>`; 
+    return; 
+  }
+
+  // Cek Akses Admin
+  const userRole = (currentUser.role || "").toString().toLowerCase();
+  const isAdmin = (userRole === "administrator" || userRole === "admin");
+
+  filtered.forEach(b => {
+    const roomObj = ROOMS.find(r => r.id === b.roomId); 
+    const roomName = roomObj ? roomObj.name : b.roomId;
+    const dateObj = new Date(b.date + "T00:00:00"); 
+    const dateStr = dateObj.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    
+    let statusColor = b.status === 'unconfirmed' ? '#f39c12' : '#2ecc71'; 
+    let statusText = b.status === 'unconfirmed' ? '(Belum Konfirmasi)' : '';
+
+    // Tentukan apakah tombol hapus muncul
+    const isOwner = b.email.toLowerCase() === currentUser.email.toLowerCase();
+    let btnHapus = "-";
+    
+    if (isAdmin || isOwner) {
+      btnHapus = `<button onclick="cancelBookingFromTable('${b.id}')" style="background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:0.8rem;">🗑️ Hapus</button>`;
+    }
+
+    const tr = document.createElement("tr"); 
+    tr.style.borderBottom = "1px solid #eee";
+    tr.innerHTML = `
+      <td>${esc(dateStr)}</td>
+      <td>${esc(b.start)} - ${esc(b.end)}</td>
+      <td style="font-weight: bold; color: #1e3a5f;">${esc(roomName)}</td>
+      <td>${esc(b.activity)} <br><small style="color:${statusColor};">${esc(statusText)}</small></td>
+      <td>${esc(b.contactPerson || b.email)}</td>
+      <td style="text-align: center;">${btnHapus}</td>
+    `;
     tbody.appendChild(tr);
   });
+}
+
+async function cancelBookingFromTable(bookingId) {
+  if (!confirm("Yakin ingin membatalkan/menghapus pemesanan ini?")) return;
+  
+  const formData = new URLSearchParams(); 
+  formData.append("action", "cancelBooking"); 
+  formData.append("id", bookingId); 
+  formData.append("id_token", getToken());
+  
+  try {
+    const res = await fetch(API_URL, { method: "POST", body: formData }); 
+    const result = await res.json();
+    if (result.success) { 
+      showToast("✅ " + result.message, "success"); 
+      await fetchBookings(); 
+      renderListBookings();  
+    } 
+    else { 
+      showToast("❌ Gagal: " + (result.message || "Tidak diketahui"), "error"); 
+    }
+  } catch (err) { 
+    showToast("Gagal terhubung ke server.", "error"); 
+  }
 }
 
 function renderMonthlyView() {
