@@ -1,4 +1,3 @@
-
 function parseTimeToMinutes(t) {
   if (!t || typeof t !== "string") return null;
   const m = t.trim().match(/^(\d{1,2}):(\d{2})$/);
@@ -8,13 +7,11 @@ function parseTimeToMinutes(t) {
   return h * 60 + min;
 }
 
-// ✅ Escape HTML: cegah user memasukkan script jahat
 function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
 }
-
 
 function timesOverlap(startA, endA, startB, endB) {
   const sA = parseTimeToMinutes(startA), eA = parseTimeToMinutes(endA);
@@ -26,9 +23,8 @@ function timesOverlap(startA, endA, startB, endB) {
 let currentUser = null;
 let liveBookings = [];
 let selectedExtraDates = [];
-// Untuk navigasi bulan di kalender multi-tanggal
 let calendarYear = null;
-let calendarMonth = null; // 0 = Januari, 11 = Desember
+let calendarMonth = null; 
 
 const ROOMS = [
   { id: "rapat", name: "Ruang Rapat FIKES", capacity: null },
@@ -47,32 +43,42 @@ const ROOMS = [
   { id: "410", name: "Ruang 410", capacity: 44 }
 ];
 
-
-// ✅ LOGIKA SAAT REFRESH (PASTI TIDAK LOGOUT)
 window.addEventListener("DOMContentLoaded", () => {
-  // 1. Ambil sesi dari auth.js
   const session = getSession();
-  
-  // 2. Jika belum login, tendang ke halaman login utama
   if (!session || !session.user) {
     window.location.href = "../index.html";
     return;
   }
 
-  // 3. Set user aktif
   currentUser = session.user;
+
+    // CEK APAKAH USER BARU DATANG DARI LINK EMAIL
+  const urlParams = new URLSearchParams(window.location.search);
+  const confirmation = urlParams.get('confirmation');
+  const dateFromUrl = urlParams.get('date');
+
+  if (dateFromUrl) {
+    // Set tanggal di date picker sesuai link email
+    const datePicker = document.getElementById("datePicker");
+    if (datePicker) datePicker.value = dateFromUrl;
+  }
+
+  if (confirmation === 'ya') {
+    showToast("✅ Terima kasih! Pemesanan Anda telah berhasil dikonfirmasi.", "success", 5000);
+    // Hapus parameter dari URL agar tidak muncul terus saat di-refresh
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (confirmation === 'tidak') {
+    showToast("❌ Pemesanan Anda telah dibatalkan.", "info", 5000);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
   
-  // 4. Tampilkan nama user di header (jika elemennya ada)
   const userBadge = document.getElementById("userBadge");
   if (userBadge) {
     userBadge.innerText = `${currentUser.name} (${currentUser.role} - ${currentUser.prodi || '-'})`;
   }
   
-  // 5. Jalankan aplikasi
   fetchBookings().then(() => initApp());
 });
-
-
 
 async function fetchBookings() {
   try {
@@ -99,6 +105,7 @@ function initApp() {
   const datePicker = document.getElementById("datePicker");
   const today = new Date();
   datePicker.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
   document.querySelectorAll(".btn-quick").forEach(btn => {
     btn.addEventListener("click", () => {
       const d = new Date(); d.setDate(d.getDate() + Number(btn.dataset.offset));
@@ -106,18 +113,21 @@ function initApp() {
       document.querySelectorAll(".btn-quick").forEach(b => b.classList.remove("active")); btn.classList.add("active"); renderRooms();
     });
   });
+  
   datePicker.addEventListener("change", renderRooms);
   document.getElementById("startTime").addEventListener("change", renderRooms);
   document.getElementById("endTime").addEventListener("change", renderRooms);
-  document.querySelector(".btn-quick[data-offset='0']").click();
+  
+  const todayBtn = document.querySelector(".btn-quick[data-offset='0']");
+  if (todayBtn) todayBtn.click();
+
   setInterval(async () => {
-    // ✅ Jangan refresh kalau tab browser tidak aktif (hemat kuota)
     if (document.visibilityState !== "visible") return;
     if (document.getElementById("mainPage").style.display !== "block") return;
     await fetchBookings();
     if (document.getElementById('tabDaftar').style.display === 'block') renderListBookings();
     if (document.getElementById('tabRekap').style.display === 'block') renderMonthlyView();
-  }, 45000); // ✅ 45 detik, lebih hemat dari 15 detik
+  }, 45000);
 }
 
 function renderRooms() {
@@ -140,7 +150,7 @@ function renderRooms() {
     if (conflict) cardClass = conflict.status === 'unconfirmed' ? "unconfirmed" : "occupied";
     card.className = "room-card " + cardClass; card.setAttribute("role", "button"); card.setAttribute("tabindex", "0");
 
-    const capacityLine = room.capacity ? `<div class="room-capacity">🪑 ${room.capacity} kursi</div>` : `<div class="room-capacity" style="opacity:0;">-</div>`; // Tetap render kosong agar grid sejajar
+    const capacityLine = room.capacity ? `<div class="room-capacity">🪑 ${room.capacity} kursi</div>` : `<div class="room-capacity" style="opacity:0;">-</div>`;
 
     if (conflict) {
       card.innerHTML = `<div class="card-top"><div class="room-name">${room.name}</div>${capacityLine}</div><div class="card-bottom"><strong>Dipakai: ${conflict.activity}</strong><br><small>(${conflict.email})</small><br><small>👁️ Klik untuk detail</small></div>`;
@@ -195,14 +205,13 @@ async function submitBooking() {
   if (document.getElementById("bookingType").value === "single") { datesToBook.push(document.getElementById("formDate").value); } 
   else { if (selectedExtraDates.length === 0) { showToast("Pilih minimal 1 tanggal di kalender!", "error"); return; } datesToBook = [...selectedExtraDates]; }
 
-  // ✅ Validasi: tolak tanggal yang sudah lewat
-    const nowCheck = new Date();
-    const todayCheck = `${nowCheck.getFullYear()}-${String(nowCheck.getMonth() + 1).padStart(2, '0')}-${String(nowCheck.getDate()).padStart(2, '0')}`;
-    const pastDates = datesToBook.filter(d => d < todayCheck);
-    if (pastDates.length > 0) {
-      showToast(`Tanggal berikut sudah lewat: ${pastDates.join(", ")}. Silakan pilih tanggal lain.`, "error", 5000);
-      return;
-    }
+  const nowCheck = new Date();
+  const todayCheck = `${nowCheck.getFullYear()}-${String(nowCheck.getMonth() + 1).padStart(2, '0')}-${String(nowCheck.getDate()).padStart(2, '0')}`;
+  const pastDates = datesToBook.filter(d => d < todayCheck);
+  if (pastDates.length > 0) {
+    showToast(`Tanggal berikut sudah lewat: ${pastDates.join(", ")}. Silakan pilih tanggal lain.`, "error", 5000);
+    return;
+  }
 
   btnSubmit.innerText = "Memeriksa ketersediaan..."; btnSubmit.disabled = true;
   try {
@@ -224,11 +233,21 @@ async function submitBooking() {
         participantCount: document.getElementById("formCount").value, notes: document.getElementById("formNotes").value,
       };
       const formData = new URLSearchParams(); for (const key in payload) formData.append(key, payload[key]);
+      
       try {
         const res = await fetch(API_URL, { method: "POST", body: formData });
         const result = await res.json();
-        if (result.success) successCount++; else failedDates.push(date);
-      } catch (err) { failedDates.push(date); }
+        if (result.success) {
+          successCount++; 
+        } else {
+          failedDates.push(date);
+          console.error("Gagal booking tanggal " + date + ":", result.message);
+          alert("Gagal: " + (result.message || "Terjadi kesalahan di server"));
+        }
+      } catch (err) { 
+        failedDates.push(date); 
+        console.error(err);
+      }
     }
 
     if (successCount === datesToBook.length) showToast(`✅ ${successCount} pemesanan berhasil!`, "success");
@@ -240,8 +259,13 @@ async function submitBooking() {
 }
 
 function logout() {
-  // auth.js sudah punya fungsi logout, kita panggil itu
-  window.logout(); 
+  // Panggil fungsi logout dari auth.js secara langsung
+  if (typeof clearSession === 'function') {
+    clearSession();
+    window.location.href = "../index.html";
+  } else {
+    window.location.reload();
+  }
 }
 
 function openDetailModal(booking, room) {
@@ -315,7 +339,6 @@ function renderMonthlyView() {
       let cellContent = ""; let cellBg = "#fff";
       if (bookings.length > 0) {
         cellBg = bookings.some(b => b.status === 'unconfirmed') ? "var(--emas)" : "var(--hijau-tosca)";
-                // ✅ Teks turun ke bawah, font lebih kecil, tetap di dalam kotak
         cellContent = `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 2px;">` + 
           bookings.map(b => 
             `<span style="color: white; font-size: 0.6rem; font-weight: bold; line-height: 1.3; white-space: nowrap;">
@@ -367,7 +390,6 @@ function toggleBookingType() {
   const type = document.getElementById("bookingType").value;
   const multipleContainer = document.getElementById("multipleDateContainer");
   if (type === "multiple") {
-    // Reset bulan kalender ke bulan tanggal awal
     const baseDateStr = document.getElementById("formDate").value;
     const baseDate = new Date(baseDateStr + "T00:00:00");
     calendarYear = baseDate.getFullYear();
@@ -383,7 +405,6 @@ function renderMiniCalendar() {
   const grid = document.getElementById("calendarGrid");
   grid.innerHTML = "";
 
-  // Jika bulan belum diset, pakai bulan dari tanggal awal
   if (calendarYear === null || calendarMonth === null) {
     const baseDateStr = document.getElementById("formDate").value;
     const baseDate = new Date(baseDateStr + "T00:00:00");
@@ -394,7 +415,6 @@ function renderMiniCalendar() {
   const baseDateStr = document.getElementById("formDate").value;
   const baseDate = new Date(baseDateStr + "T00:00:00");
 
-  // === HEADER: Tombol Bulan + Nama Bulan ===
   const bulanNama = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const navHtml = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; grid-column: 1/-1;">
@@ -404,13 +424,11 @@ function renderMiniCalendar() {
     </div>`;
   grid.innerHTML = navHtml;
 
-  // === Header Hari ===
   ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].forEach(day => {
     const isWeekend = (day === 'Sab' || day === 'Min');
     grid.innerHTML += `<div style="font-size:0.7rem; font-weight:bold; color:${isWeekend ? '#e74c3c' : 'var(--hijau-gelap)'}; padding-bottom:4px;">${day}</div>`;
   });
 
-  // Kosongkan sebelum tanggal 1
   let firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
   firstDay = firstDay === 0 ? 6 : firstDay - 1;
   for (let i = 0; i < firstDay; i++) { grid.innerHTML += `<div></div>`; }
@@ -425,7 +443,7 @@ function renderMiniCalendar() {
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayOfWeek = new Date(calendarYear, calendarMonth, d).getDay(); // 0=Minggu, 6=Sabtu
+    const dayOfWeek = new Date(calendarYear, calendarMonth, d).getDay(); 
     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
     const isPast = dateStr < todayStr;
     const isOverlap = liveBookings.find(b => b.roomId === roomId && b.date === dateStr && timesOverlap(start, end, b.start, b.end));
@@ -433,7 +451,6 @@ function renderMiniCalendar() {
     let cellStyle = "padding:6px 0; border-radius:4px; font-size:0.8rem; transition:all 0.2s;";
 
     if (isWeekend) {
-      // Sabtu/Minggu: abu-abu muda, tidak bisa diklik
       cellStyle += "background:#f9f9f9; color:#bbb; cursor:not-allowed; border:1px solid #eee;";
       grid.innerHTML += `<div style="${cellStyle}" title="Hari libur">${d}</div>`;
     } else if (isPast) {
@@ -446,13 +463,11 @@ function renderMiniCalendar() {
       cellStyle += "background:#fff; border:1px solid var(--abu-kotak); color:var(--hijau-gelap); font-weight:bold; cursor:pointer;";
       const cellId = `cal-${dateStr}`;
       grid.innerHTML += `<div id="${cellId}" style="${cellStyle}" onclick="toggleDateSelection('${dateStr}','${cellId}')">${d}</div>`;
-      // Auto-pilih tanggal awal jika di bulan ini
       if (dateStr === baseDateStr) toggleDateSelection(dateStr, cellId);
     }
   }
 }
 
-// Fungsi geser bulan (‹ dan ›)
 function geserKalender(arah) {
   calendarMonth += arah;
   if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
